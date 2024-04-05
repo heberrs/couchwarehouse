@@ -5,7 +5,7 @@ const ProgressBar = require('progress')
 const debug = require('debug')('couchwarehouse')
 const util = require('./lib/util.js')
 const axios = require('axios')
-const { constants } = require('buffer')
+
 let cr
 let sqldb
 
@@ -37,7 +37,7 @@ const extractSequenceNumber = (seq) => {
 const transformAndDiscoverSchema = (b, opts, theSchema) => {
   // array of SQL statements
   let createSQL = []
-  
+
   // for each document in the batch
   for (const i in b) {
     // the document we're working with
@@ -52,12 +52,12 @@ const transformAndDiscoverSchema = (b, opts, theSchema) => {
       doc = result.doc
       retry = result.retry
 
-      if (retry){
-        b.push({...b[i], doc});
-      } else { 
+      if (retry) {
+        b.push({ ...b[i], doc })
+      } else {
         b[i].doc = result.doc
       }
-      
+
       // calculate its document type
       const docType = doc && opts.split ? doc[opts.split] : '_default'
 
@@ -78,7 +78,7 @@ const transformAndDiscoverSchema = (b, opts, theSchema) => {
       }
     } while (retry)
   }
-  
+
   return createSQL
 }
 
