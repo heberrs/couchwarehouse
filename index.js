@@ -42,17 +42,17 @@ const transformAndDiscoverSchema = (b, opts, theSchema) => {
   for (const i in b) {
     // the document we're working with
     let doc = b[i].doc
-    let retry = false
-    let result = { doc, retry }
+    let appendDoc = false
+    let result = { doc, appendDoc }
     do {
       // apply transform function
       if (typeof opts.transform === 'function') {
         result = opts.transform.apply(null, [b[i].doc])
       }
       doc = result.doc
-      retry = result.retry
+      appendDoc = result.appendDoc
 
-      if (retry) {
+      if (appendDoc) {
         b.push({ ...b[i], doc })
       } else {
         b[i].doc = result.doc
@@ -76,7 +76,7 @@ const transformAndDiscoverSchema = (b, opts, theSchema) => {
         debug('Calculating Create SQL for ' + docType)
         createSQL = createSQL.concat(sqldb.generateCreateTableSQL(opts, docType, opts.database, s, opts.reset))
       }
-    } while (retry)
+    } while (appendDoc)
   }
 
   return createSQL

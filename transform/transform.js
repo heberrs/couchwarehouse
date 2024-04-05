@@ -5,7 +5,7 @@ const f = (doc) => {
   const TYPE_DOC_DEV = '-dev'
   const TYPE_DOC_DIVIDA_ATIVA = 'doc1'
 
-  let retry = false
+  let appendDoc = false
   const typeDoc = doc._id.slice(-4)
   if (!doc.typeDoc) {
     switch (typeDoc) {
@@ -30,11 +30,11 @@ const f = (doc) => {
     doc.processado = true
     delete doc.devedores
     if (index > 0) {
-      retry = true
+      appendDoc = true
     }
   }
 
-  return { doc, retry }
+  return { doc, appendDoc }
 }
 
 // export the function
