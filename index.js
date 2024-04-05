@@ -5,6 +5,7 @@ const ProgressBar = require('progress')
 const debug = require('debug')('couchwarehouse')
 const util = require('./lib/util.js')
 const axios = require('axios')
+const { constants } = require('buffer')
 let cr
 let sqldb
 
@@ -36,38 +37,48 @@ const extractSequenceNumber = (seq) => {
 const transformAndDiscoverSchema = (b, opts, theSchema) => {
   // array of SQL statements
   let createSQL = []
-
+  
   // for each document in the batch
   for (const i in b) {
     // the document we're working with
     let doc = b[i].doc
+    let retry = false
+    let result = { doc, retry }
+    do {
+      // apply transform function
+      if (typeof opts.transform === 'function') {
+        result = opts.transform.apply(null, [b[i].doc])
+      }
+      doc = result.doc
+      retry = result.retry
 
-    // apply transform function
-    if (typeof opts.transform === 'function') {
-      doc = opts.transform.apply(null, [doc])
-    }
-    b[i].doc = doc
+      if (retry){
+        b.push({...b[i], doc});
+      } else { 
+        b[i].doc = result.doc
+      }
+      
+      // calculate its document type
+      const docType = doc && opts.split ? doc[opts.split] : '_default'
 
-    // calculate its document type
-    const docType = doc && opts.split ? doc[opts.split] : '_default'
+      // if not a design doc and not a document type we've seen before
+      if (doc && !doc._id.match(/^_design/) && !theSchema[docType] && typeof doc._deleted === 'undefined') {
+        // clone the doc
+        doc = JSON.parse(JSON.stringify(doc))
 
-    // if not a design doc and not a document type we've seen before
-    if (doc && !doc._id.match(/^_design/) && !theSchema[docType] && typeof doc._deleted === 'undefined') {
-      // clone the doc
-      doc = JSON.parse(JSON.stringify(doc))
+        // discover the schema
+        debug('Calculating the schema for ' + docType)
+        const s = schema.discover(doc)
+        theSchema[docType] = s
+        debug('schema', JSON.stringify(s))
 
-      // discover the schema
-      debug('Calculating the schema for ' + docType)
-      const s = schema.discover(doc)
-      theSchema[docType] = s
-      debug('schema', JSON.stringify(s))
-
-      // create the database
-      debug('Calculating Create SQL for ' + docType)
-      createSQL = createSQL.concat(sqldb.generateCreateTableSQL(opts, docType, opts.database, s, opts.reset))
-    }
+        // create the database
+        debug('Calculating Create SQL for ' + docType)
+        createSQL = createSQL.concat(sqldb.generateCreateTableSQL(opts, docType, opts.database, s, opts.reset))
+      }
+    } while (retry)
   }
-
+  
   return createSQL
 }
 
